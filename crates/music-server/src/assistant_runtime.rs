@@ -214,6 +214,19 @@ pub fn asset(id: &str) -> Option<&'static Asset> {
     ASSETS.iter().find(|asset| asset.id == id)
 }
 
+pub fn unavailable_reason() -> Option<&'static str> {
+    (!cfg!(windows)).then_some("The bundled local assistant is available for Windows only. Connect a local server by address instead.")
+}
+
+fn ensure_native_runtime(asset: &Asset) -> Result<()> {
+    if asset.kind == AssetKind::Runtime {
+        if let Some(reason) = unavailable_reason() {
+            bail!("{reason}");
+        }
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct AssetStatus {
     pub id: &'static str,
@@ -467,6 +480,9 @@ impl AssistantRuntime {
         for id in ids {
             assets.push(asset(id).ok_or_else(|| anyhow!("unknown assistant asset: {id}"))?);
         }
+        for asset in &assets {
+            ensure_native_runtime(asset)?;
+        }
         let pending: Vec<&'static Asset> = assets.into_iter().filter(|asset| !self.is_installed(asset)).collect();
         if pending.is_empty() {
             return Ok(());
@@ -531,6 +547,7 @@ impl AssistantRuntime {
     /// interrupted file resumes from what is already on disk.
     pub async fn install(&self, id: &str) -> Result<()> {
         let asset = asset(id).ok_or_else(|| anyhow!("unknown assistant asset: {id}"))?;
+        ensure_native_runtime(asset)?;
         {
             let mut state = self.state.lock().await;
             if state.download.as_ref().is_some_and(|progress| !progress.done && progress.error.is_none()) {
@@ -821,6 +838,13 @@ fn hide_console(command: &mut Command) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn foreign_runtimes_are_rejected_before_downloading_but_models_are_portable() {
+        for asset in ASSETS {
+            assert_eq!(ensure_native_runtime(asset).is_ok(), cfg!(windows) || asset.kind != AssetKind::Runtime);
+        }
+    }
 
     /// llama.cpp is pinned to one build so a working setup keeps working.
     const LLAMA_BUILD: &str = "b11236";

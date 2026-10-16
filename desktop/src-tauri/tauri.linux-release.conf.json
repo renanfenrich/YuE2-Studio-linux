@@ -1,4 +1,7 @@
 {
+  "plugins": {
+    "updater": null
+  },
   "bundle": {
     "createUpdaterArtifacts": false,
     "targets": ["deb", "appimage"],

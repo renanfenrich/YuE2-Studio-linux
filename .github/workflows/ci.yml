@@ -1,6 +1,6 @@
 name: CI
 
-# The service's tests on Windows, the studio's own platform, and the interface
+# The service's tests on Windows and Linux, and the interface
 # type-checked, tested and built, on every branch pushed.
 
 on:
@@ -16,12 +16,28 @@ concurrency:
 
 jobs:
   service:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - name: Linux native build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake ninja-build pkg-config autoconf automake libtool nasm libasound2-dev libssl-dev
       - uses: Swatinem/rust-cache@v2
       - name: Service tests
-        run: cargo test -p music-server --locked
+        run: cargo test --workspace --locked
+      - uses: actions/setup-node@v4
+        if: runner.os == 'Linux'
+        with:
+          node-version: 22
+      - name: Linux service lifecycle and media smoke
+        if: runner.os == 'Linux'
+        run: |
+          cargo build -p music-server --locked
+          node scripts/smoke-linux-service.mjs target/debug/music-server
 
   interface:
     runs-on: ubuntu-latest

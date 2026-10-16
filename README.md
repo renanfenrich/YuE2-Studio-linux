@@ -7,6 +7,8 @@
 
 # YuE2 Studio
 
+Linux fork: [build, installation, supported scope and acceptance](docs/linux/README.md).
+
 **Full songs with an editable score, generated on your own GPU. One executable — no Python, no Node.js, no launcher.**
 
 [![Project page](https://img.shields.io/badge/Project_page-timoncool.github.io-7c3aed?style=for-the-badge)](https://timoncool.github.io/YuE2-Studio/)

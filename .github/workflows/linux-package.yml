@@ -1,0 +1,21 @@
+name: Linux packages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and smoke check both package formats
+        run: bash scripts/build-linux-docker.sh "$PWD/linux-out" "$RUNNER_TEMP/yue2-cache"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-packages-and-build-log
+          path: linux-out/

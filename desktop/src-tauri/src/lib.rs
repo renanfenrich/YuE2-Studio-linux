@@ -22,6 +22,9 @@ const STUDIO_DATA_DIRECTORY: &str = "YuE2 Studio";
 /// to choose either of those. Environment overrides remain authoritative for
 /// portable/development installations.
 fn studio_data_directory() -> PathBuf {
+    if let Some(root) = std::env::var_os("YUE_STUDIO_DATA_ROOT") {
+        return PathBuf::from(root);
+    }
     // A portable copy keeps everything it owns beside itself: models, the
     // library, media, logs and settings. Nothing is written into AppData, so
     // deleting the folder deletes the studio, and carrying the folder to
@@ -35,10 +38,10 @@ fn studio_data_directory() -> PathBuf {
     // in F:\AI, not in their profile on C:. Only when the install directory
     // cannot be written to - Program Files, a read-only share - does the studio
     // fall back to AppData, because then it has nowhere else to go.
-    // On macOS the executable sits inside a signed .app bundle that must not
-    // be written to, so an installation always uses Application Support.
+    // macOS uses Application Support. Linux uses XDG data storage even when
+    // an AppImage is extracted into a writable temporary directory.
     let beside_the_executable = executable_directory().join("data");
-    if !cfg!(target_os = "macos") && directory_is_writable(&beside_the_executable) {
+    if cfg!(windows) && directory_is_writable(&beside_the_executable) {
         return beside_the_executable;
     }
 
@@ -552,6 +555,7 @@ pub fn run() {
     // Whatever ends this process - the window, Task Manager, a crash - takes
     // the engine with it. Without this the engine outlived a force-killed
     // studio, holding the graphics card and the port it listens on.
+    #[cfg(windows)]
     if !music_engine::process_group::bind_children_to_this_process() {
         eprintln!("this process could not create its own job object; the engine is stopped by the supervisor only");
     }
