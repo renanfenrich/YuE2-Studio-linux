@@ -8,11 +8,12 @@ set -euo pipefail
 if [ "${1:-}" = "--inside" ]; then
   export DEBIAN_FRONTEND=noninteractive APPIMAGE_EXTRACT_AND_RUN=1 RUSTUP_TOOLCHAIN=stable CARGO_TERM_COLOR=never
   export CARGO_HOME=/cache/cargo RUSTUP_HOME=/cache/rustup npm_config_cache=/cache/npm PATH=/cache/cargo/bin:/cache/node/bin:$PATH
+  export YUE_ENGINE_BUILD_ROOT=/cache/native-builds
   echo "[..] packages"
   apt-get update -q >/dev/null
   apt-get install -y -q --no-install-recommends build-essential pkg-config cmake ninja-build nasm autoconf automake libtool \
     curl ca-certificates git unzip xz-utils libssl-dev libasound2-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
-    librsvg2-dev patchelf file libfuse2 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav libvulkan-dev >/dev/null
+    librsvg2-dev patchelf file libfuse2 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav libvulkan-dev xvfb xauth dbus-x11 >/dev/null
   if [ ! -x /cache/node/bin/node ]; then
     echo "[..] node 22"
     v=$(curl -s https://nodejs.org/dist/latest-v22.x/ | grep -o 'node-v22[0-9.]*-linux-x64.tar.xz' | head -1)
@@ -34,6 +35,10 @@ if [ "${1:-}" = "--inside" ]; then
   rm -rf /cache/src && mkdir -p /cache/src
   git -c safe.directory=/src -C /src archive HEAD | tar -x -C /cache/src
   cd /cache/src
+  # Keep pinned runtimes across source snapshots; release scripts rebuild
+  # them when their committed engine revision changes.
+  mkdir -p /cache/resources
+  ln -s /cache/resources desktop/src-tauri/resources
   export CARGO_TARGET_DIR=/cache/target
   ln -sfn /cache/target desktop/src-tauri/target
   echo "[..] build (log: build.log)"
@@ -48,6 +53,11 @@ if [ "${1:-}" = "--inside" ]; then
   version="$(node -p "require('./desktop/src-tauri/tauri.conf.json').version")"
   cp "$(find /cache/target/release/bundle/deb -name '*.deb' | head -n 1)" "/out/YuE2-Studio-${version}-linux-amd64.deb"
   cp "$(find /cache/target/release/bundle/appimage -name '*.AppImage' | head -n 1)" "/out/YuE2-Studio-${version}-linux-x86_64.AppImage"
+  # An isolated container has no unprivileged user sandbox. Never export this
+  # outside this root-only build check.
+  WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1 bash scripts/smoke-linux-package.sh "/out/YuE2-Studio-${version}-linux-amd64.deb" > /out/smoke.log 2>&1
+  WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1 bash scripts/smoke-linux-package.sh "/out/YuE2-Studio-${version}-linux-x86_64.AppImage" >> /out/smoke.log 2>&1
+  cat /out/smoke.log
   ls -la /out/*.deb /out/*.AppImage
   echo "[OK] YuE2-Studio ${version} for Linux"
   exit 0

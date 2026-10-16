@@ -2382,6 +2382,7 @@ async fn read_training(State(state): State<AppState>) -> Json<Value> {
         "recipe_fields": music_engine::yue_train::recipe_fields(),
         "min_vram_gb": music_engine::yue_train::MIN_VRAM_GB,
         "card_trains": trainer_card_refusal().is_none(),
+        "unavailable_reason": if cfg!(windows) { None } else { Some("LoRA training is available for Windows only in this build.") },
         "card_needs": trainer_card_needs(),
         "trainer_driver": hardware::CUDA13_DRIVER,
         "item_style": "style",
@@ -2465,6 +2466,9 @@ async fn training_pack_runtime(State(state): State<AppState>) -> Json<Value> {
     body["min_vram_gb"] = music_engine::yue_train::MIN_VRAM_GB.into();
     body["card_trains"] = trainer_card_refusal().is_none().into();
     body["card_needs"] = trainer_card_needs().into();
+    if !cfg!(windows) {
+        body["unavailable_reason"] = "LoRA training is available for Windows only in this build.".into();
+    }
     Json(body)
 }
 
@@ -2828,6 +2832,9 @@ async fn card_free_for_training(state: &AppState) -> Result<(), String> {
 /// is a CUDA 13 build and computes on the card only: on the processor one run
 /// would take days.
 fn trainer_card_refusal() -> Option<String> {
+    if !cfg!(windows) {
+        return Some("LoRA training is available for Windows only in this build.".into());
+    }
     match hardware::hardware().cuda {
         Some(hardware::CudaBuild::Cuda13) => None,
         Some(hardware::CudaBuild::Cuda12) => Some(format!(
@@ -4134,6 +4141,8 @@ async fn engine_options(State(state): State<AppState>) -> Json<Value> {
     } else {
         "bundled"
     };
+    let executable = executable.or_else(|| engine_location(options.clone()).executable().ok()
+        .map(|path| music_engine::yue_server::strip_verbatim(&path).display().to_string()));
     // a start holds the engine for as long as it takes (a download, the weights): the page is answered now
     let (running, starting) = match state.engine.try_lock() {
         // canonicalised paths carry the \\?\ prefix, which the saved path and the environment do not
@@ -5330,6 +5339,7 @@ async fn assistant_runtime_status(State(state): State<AppState>) -> Json<Value> 
     let config = state.assistant.read().await.clone();
     let mut value = serde_json::to_value(&status).unwrap_or(Value::Null);
     if let Value::Object(ref mut fields) = value {
+        fields.insert("unavailable_reason".into(), serde_json::to_value(assistant_runtime::unavailable_reason()).unwrap_or(Value::Null));
         fields.insert("provider".into(), serde_json::to_value(config.provider).unwrap_or(Value::Null));
         // And which model, so the dropdown reopens on the one that was picked
         // rather than on whichever happens to be installed first.
@@ -5366,6 +5376,11 @@ async fn assistant_runtime_install(
         "auto" | "cuda" | "cpu" => assistant_set(&request.asset_id),
         _ => Vec::new(),
     };
+    if !set.is_empty() {
+        if let Some(reason) = assistant_runtime::unavailable_reason() {
+            return Err(api_error(StatusCode::CONFLICT, reason.into()));
+        }
+    }
     if !set.is_empty() {
         // Downloading a model is choosing it. Nothing else recorded which one,
         // so a freshly installed Gemma left the studio reporting that no

@@ -88,6 +88,7 @@ export interface TrainingRun {
 }
 
 export interface TrainingState {
+  unavailable_reason?: string | null;
   pack: PackFile[];
   pack_ready: boolean;
   /** The vocal separator the previous recipe's lyric timing needs. */

@@ -19,6 +19,7 @@ desktop/src-tauri/resources/
 
 # Built installers and portable archives belong to a GitHub release, not here.
 release/
+/linux-out/
 
 # Local engineering notes: they never belong to the published repository.
 HANDOFF.md

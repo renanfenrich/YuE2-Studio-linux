@@ -77,6 +77,7 @@ type OptionalAsset = { id: string; label: string; bytes: number; note: string; i
 type SetProgress = { bytes: number; installed_bytes: number; ready: boolean; files: number; with_model?: boolean };
 type OptionalStatus = {
   assets: OptionalAsset[];
+  unavailable_reason?: string | null;
   /// What the chosen engine is made of, as the server counts it: the panel
   /// used to add up every file in the group and show whichever download the
   /// shared counter happened to hold.
@@ -377,6 +378,9 @@ export const OptionalGroup: React.FC<{
                   </div>
                 );
               }
+              if (status?.unavailable_reason) {
+                return <p role="note" className="text-xs text-zinc-500">{status.unavailable_reason}</p>;
+              }
               const running = status?.active_download && !status.active_download.done ? status.active_download : null;
               const busy = Boolean(running) || starting;
               const chosenAsset = models.find((asset) => asset.id === chosenModel);
@@ -519,6 +523,8 @@ export const OptionalGroup: React.FC<{
                 </div>
               );
             })()
+          ) : status?.unavailable_reason ? (
+            <p role="note" className="text-xs text-zinc-500">{status.unavailable_reason}</p>
           ) : (
             <>
               {assets.map((asset) => {

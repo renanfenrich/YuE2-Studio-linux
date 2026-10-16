@@ -54,8 +54,8 @@ pub fn ensure_dies_with_parent(command: &mut std::process::Command) {
         use std::os::unix::process::CommandExt;
 
         let parent = std::process::id() as libc::pid_t;
-        // `PR_SET_PDEATHSIG` is per-thread and cleared across a successful
-        // `execve`, so it has to be set in the forked child, which is what
+        // `PR_SET_PDEATHSIG` is cleared by fork, so it has to be set in the
+        // forked child, which is what
         // `pre_exec` brackets. Everything inside is async-signal-safe.
         unsafe {
             command.pre_exec(move || {
@@ -112,6 +112,50 @@ fn job() -> isize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn a_linux_sidecar_dies_when_its_parent_is_killed() {
+        use std::io::{BufRead, BufReader, Write};
+        use std::process::{Command, Stdio};
+        use std::time::{Duration, Instant};
+
+        if std::env::var_os("YUE_TEST_SIDECAR_PARENT").is_some() {
+            let mut command = Command::new("sleep");
+            command.arg("30").stdout(Stdio::null());
+            ensure_dies_with_parent(&mut command);
+            let mut child = command.spawn().unwrap();
+            println!("sidecar-pid={}", child.id());
+            std::io::stdout().flush().unwrap();
+            child.wait().unwrap();
+            return;
+        }
+        let mut parent = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "process::tests::a_linux_sidecar_dies_when_its_parent_is_killed", "--nocapture"])
+            .env("YUE_TEST_SIDECAR_PARENT", "1")
+            .stdout(Stdio::piped())
+            .spawn().unwrap();
+        let mut output = BufReader::new(parent.stdout.take().unwrap());
+        let mut line = String::new();
+        let pid = loop {
+            assert!(output.read_line(&mut line).unwrap() > 0, "parent exited without starting a sidecar");
+            if let Some(pid) = line.trim().strip_prefix("sidecar-pid=") {
+                break pid.parse::<u32>().unwrap();
+            }
+            line.clear();
+        };
+        parent.kill().unwrap();
+        parent.wait().unwrap();
+        let start = Instant::now();
+        loop {
+            let status = std::fs::read_to_string(format!("/proc/{pid}/stat"));
+            if status.as_ref().map_or(true, |text| text.split_once(") ").is_some_and(|(_, tail)| tail.starts_with('Z'))) {
+                break;
+            }
+            assert!(start.elapsed() < Duration::from_secs(5), "sidecar {pid} survived its parent");
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
 
     #[test]
     #[cfg(windows)]

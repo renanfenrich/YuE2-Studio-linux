@@ -23,6 +23,6 @@ cd "$root"
 npm --prefix app ci --no-audit --no-fund
 npm --prefix desktop ci --no-audit --no-fund
 cd desktop
-npm exec tauri build -- --config src-tauri/tauri.linux-release.conf.json --bundles deb,appimage
+npm exec tauri build -- --config src-tauri/tauri.linux-release.conf.json --bundles deb,appimage -- --locked
 
 find src-tauri/target/release/bundle -name '*.deb' -o -name '*.AppImage'
