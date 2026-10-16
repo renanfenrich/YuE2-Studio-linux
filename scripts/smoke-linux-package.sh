@@ -15,12 +15,14 @@ if curl --silent --max-time 1 http://127.0.0.1:8791/health >/dev/null; then
   exit 1
 fi
 case "$package" in
-  *.deb) dpkg-deb -x "$package" "$work/extract"; prefix="$work/extract" ;;
+  *.deb) dpkg-deb -x "$package" "$work/extract"; prefix="$work/extract"; launcher="$prefix/usr/bin/YuE2-Studio" ;;
   *.AppImage)
     cd "$work"
-    chmod +x "$package"
-    "$package" --appimage-extract >/dev/null
+    cp "$package" "$work/package.AppImage"
+    chmod +x "$work/package.AppImage"
+    "$work/package.AppImage" --appimage-extract >/dev/null
     prefix="$work/squashfs-root"
+    launcher="$prefix/AppRun"
     ;;
   *) echo 'Expected a .deb or .AppImage' >&2; exit 1 ;;
 esac
@@ -37,7 +39,7 @@ grep -q Usage "$work/engine-help.log"
 export XDG_DATA_HOME="$work/user data" DO_NOT_TRACK=1 STUDIO_TELEMETRY=0
 # The desktop must discover its packaged engine and XDG data path itself.
 unset YUE_STUDIO_DATA_ROOT YUE_ENGINE_ROOT YUE_ENGINE_BIN YUE_MODELS_ROOT YUE_STUDIO_SETTINGS_PATH YUE_STUDIO_PORT
-setsid dbus-run-session -- xvfb-run -a "$binary" >"$work/desktop.log" 2>&1 &
+setsid dbus-run-session -- xvfb-run -a "$launcher" >"$work/desktop.log" 2>&1 &
 runner=$!
 ready=false
 for attempt in $(seq 1 90); do

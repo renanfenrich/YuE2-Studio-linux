@@ -43,6 +43,13 @@ Q5 backbone, F32 VAE and decoder companion (approximately 3.3 GB on disk).
 SheetSage2 is optional for generation. A successful install/startup is not
 proof that a particular card can generate a song.
 
+On a hybrid laptop, Vulkan may choose the integrated card. The native ggml
+`GGML_VK_VISIBLE_DEVICES` variable selects Vulkan devices before launch:
+`GGML_VK_VISIBLE_DEVICES=1 ./YuE2-Studio-3.6.0-linux-x86_64.AppImage`.
+Index 1 was NVIDIA on the tested laptop; check the Vulkan device enumeration
+on your own machine. The studio's CUDA card setting does not select Vulkan
+devices. Both Intel and NVIDIA Vulkan were tested; see `acceptance.md`.
+
 Default user data: `$XDG_DATA_HOME/yue2-studio`, or
 `~/.local/share/yue2-studio`. This holds settings, models, the library and media.
 An explicit `YUE_STUDIO_DATA_ROOT` applies consistently to the shell and service.
