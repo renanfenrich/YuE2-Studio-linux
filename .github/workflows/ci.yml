@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Linux native build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake ninja-build pkg-config autoconf automake libtool nasm libasound2-dev libssl-dev
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake ninja-build pkg-config autoconf automake libtool nasm libasound2-dev libssl-dev libwayland-dev
       - uses: Swatinem/rust-cache@v2
       - name: Service tests
         run: cargo test --workspace --locked

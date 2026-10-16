@@ -6,7 +6,8 @@ Status: technical validation complete; human review required. No merge or releas
 
 - Fork baseline: `7714b676b502383dfb71e6fd99fedf9feb320321`.
 - Built application code: `a3cc386c45da6fe27baeef88990f72a6f84e8508`.
-  Subsequent changes correct the AppImage smoke launcher and document results;
+  Subsequent changes correct the AppImage smoke launcher, add an explicit
+  Wayland development dependency to CI and document results;
   they do not change the built application, engine pins or dependency locks.
 - Builder: Ubuntu 22.04 container, Rust 1.99.1, Node 22.23.3,
   LunarG Vulkan SDK 1.4.363.0. Node is build/test tooling only.
@@ -92,5 +93,8 @@ timed out, so no screenshot evidence is claimed. CUDA, training, managed local
 assistant and VST parity remain deferred. Other optional runtimes, other
 distributions, ARM and long generations were not validated.
 
-GitHub CI is configured; local results above are independent of hosted CI status.
+The first hosted Linux service check exposed a missing `libwayland-dev` CI
+prerequisite, which the GTK-equipped local builder already had transitively.
+The workflow now installs it explicitly. The failed log is retained locally
+as `ci-linux-first.log`; local results above are independent of hosted CI status.
 Approval must come from `octavariumdigitalpartners` on the PR's current head.
